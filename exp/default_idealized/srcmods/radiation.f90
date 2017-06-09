@@ -20,8 +20,8 @@ implicit none
 private
 !==================================================================================
 
-! version information 
- 
+! version information
+
 character(len=128) :: version='$Id: radiation.f90 $'
 character(len=128) :: tag='homemade'
 
@@ -53,11 +53,11 @@ real    :: atm_abs         = 0.2
 real    :: sw_diff         = 0.0
 real    :: lw_linear_frac  = 0.1
 real    :: albedo_value    = 0.3
-real    :: lw_tau_exponent  = 4.0 
-real    :: sw_tau_exponent  = 4.0 
+real    :: lw_tau_exponent  = 4.0
+real    :: sw_tau_exponent  = 4.0
 
 logical :: fixed_day          = .false.
-real    :: fixed_day_value    = 0.       ! time in days from spring equinox 
+real    :: fixed_day_value    = 0.       ! time in days from spring equinox
 real    :: days_in_year       = 360 ! how many model days in solar year
 logical :: perpetual_equinox  = .false. ! whether to use perpetual equinox rather than seasonally varying insolation
 logical :: annual_mean        = .true. ! whether to use annual mean
@@ -90,7 +90,7 @@ namelist/radiation_nml/ albedo_value, lw_linear_frac, solar_constant, del_sol, o
                         lw_tau0_eqtr, lw_tau0_pole, atm_abs, lw_tau_exponent, sw_tau_exponent, &
                         perpetual_equinox, annual_mean, fixed_day, fixed_day_value, days_in_year, &
                         orb_year, orb_ecc, orb_obl, orb_long_perh
-                      
+
 !==================================================================================
 !-------------------- diagnostics fields -------------------------------
 
@@ -145,7 +145,7 @@ integer :: j, k, day_ann
 integer :: lat_max
 logical :: calc_orb =.true. ! whether orbital parameters need to be calculated
 
-real, allocatable, dimension(:,:)   ::   lat                 ! latitude in radians 
+real, allocatable, dimension(:,:)   ::   lat                 ! latitude in radians
 real, allocatable, dimension(:)     ::   deg_lat
 allocate(lat(is:ie, js:je))
 allocate(deg_lat(js:je))
@@ -275,7 +275,7 @@ end if
 !########################################################################!
 ! CALCULATE INSOLATION PROFILE THAT CORRESPONDS TO ORBITAL CONFIGURATIONS SPECIFIED ABOVE:
 ! (i)    ANNUAL-MEAN PROFILE                      IF FIXED_DAY = .FALSE.
-! (ii)   PROFILE AT A FIXED DAY = FIXED_DAY_VALUE IF FIXED_DAY = .TRUE.                                              
+! (ii)   PROFILE AT A FIXED DAY = FIXED_DAY_VALUE IF FIXED_DAY = .TRUE.
 !########################################################################!
 !                            Ian, Feb 2009; Xavier, May 2012
 allocate (h0_ann                    (ie-is+1, je-js+1))
@@ -287,19 +287,19 @@ insolation_annual_mean = 0
 
 do k = 1,  days_in_year
 
-  ! === START ANNUAL INSOLATION CALCULATION === ! 
+  ! === START ANNUAL INSOLATION CALCULATION === !
   ! Calculate annual mean insolation as function of latitude, and orbital parameters (Ian, Feb. 2009)
-  
+
   ! The calendar is referenced to the vernal equinox (day=0)
-  
-  ! lambda (or solar longitude) is the angular distance along Earth's orbit measured from vernal equinox (21 March). 
+
+  ! lambda (or solar longitude) is the angular distance along Earth's orbit measured from vernal equinox (21 March).
   ! Estimate lambda from calendar day using an approximation from Berger 1978 section 3.
 
   if (fixed_day) then
      time_in_ann = fixed_day_value * secs_per_day
   else
-     time_in_ann = 1.*k*secs_per_day  
-  endif   
+     time_in_ann = 1.*k*secs_per_day
+  endif
 
   beta=sqrt(1.-orb_ecc**2)
   lambda0_ann  = 2.*pi*time_in_ann/(days_in_year*secs_per_day)
@@ -311,10 +311,10 @@ do k = 1,  days_in_year
          + (2.*orb_ecc-1./4.*orb_ecc**3)*sin(lambda_m_ann-orb_long_perh*deg_to_rad) &
          + (5./4.)*orb_ecc**2*sin(2*(lambda_m_ann-orb_long_perh*deg_to_rad)) &
          + (13./12.)*orb_ecc**3*sin(3*(lambda_m_ann-orb_long_perh*deg_to_rad))
-  
+
   delta_ann = asin(sin(orb_obl*deg_to_rad)*sin(lambda_ann)); ! declination of the sun
 
-  ! hour angle 
+  ! hour angle
   h0_arg_ann   = -tan(lat(:,:)) * tan(delta_ann)
   where (h0_arg_ann .le. -1.)
      h0_ann = pi
@@ -323,16 +323,16 @@ do k = 1,  days_in_year
   elsewhere
      h0_ann = acos(h0_arg_ann)
   endwhere
-  
+
   ! Insolation: Berger 1978 eq (10)
   insolation_ann=solar_constant/pi*(1.+orb_ecc*cos(lambda_ann-orb_long_perh*deg_to_rad))**2 / &
   &   (1.-orb_ecc**2)**2 * ( h0_ann*sin(lat(:,:))*sin(delta_ann) + &
   &   cos(lat(:,:))*cos(delta_ann)*sin(h0_ann) )
 
-  insolation_annual_mean = insolation_annual_mean + insolation_ann / days_in_year 
+  insolation_annual_mean = insolation_annual_mean + insolation_ann / days_in_year
 
 enddo
- 
+
                ! === END INSOLATION CALCULATION ===  !
 
 initialized = .true.
@@ -361,9 +361,9 @@ allocate (lw_dtrans        (ie-is+1, je-js+1, num_levels))
 allocate (lw_tau           (ie-is+1, je-js+1, num_levels+1))
 allocate (sw_tau           (ie-is+1, je-js+1, num_levels+1))
 
-allocate (h0               (ie-is+1, je-js+1)) 
-allocate (h0_arg           (ie-is+1, je-js+1)) 
-allocate (insolation       (ie-is+1, je-js+1)) 
+allocate (h0               (ie-is+1, je-js+1))
+allocate (h0_arg           (ie-is+1, je-js+1))
+allocate (insolation       (ie-is+1, je-js+1))
 
 allocate (lw_tau0          (ie-is+1, je-js+1))
 allocate (sw_tau0          (ie-is+1, je-js+1))
@@ -422,22 +422,22 @@ allocate (sw_tau0          (ie-is+1, je-js+1))
         register_diag_field ( mod_name, 'flux_sw', axes(half), Time, &
                'Net shortwave radiative flux (positive up)', &
                'W/m^2', missing_value=missing_value               )
-! Kyle, 2016            
+! Kyle, 2016
     id_flux_lwdn = &
         register_diag_field ( mod_name, 'flux_lwdn', axes(half), Time, &
                'Downward longwave radiative flux', &
-               'W/m^2', missing_value=missing_value               )       
-               
+               'W/m^2', missing_value=missing_value               )
+
     id_flux_lwup = &
         register_diag_field ( mod_name, 'flux_lwup', axes(half), Time, &
                'Upward longwave radiative flux', &
-               'W/m^2', missing_value=missing_value               )      
-! End Kyle, 2016
-                       
-    id_flux_sw = &
-        register_diag_field ( mod_name, 'flux_sw', axes(half), Time, &
-               'Net shortwave radiative flux (positive up)', &
                'W/m^2', missing_value=missing_value               )
+! End Kyle, 2016
+
+    ! id_flux_sw = &
+    !     register_diag_field ( mod_name, 'flux_sw', axes(half), Time, &
+    !            'Net shortwave radiative flux (positive up)', &
+    !            'W/m^2', missing_value=missing_value               )
 
 return
 end subroutine radiation_init
@@ -481,7 +481,7 @@ if ( perpetual_equinox ) then
 !########################################################################!
 else if (annual_mean) then
 ! Ian, 2009; Xavier, 2012
-  insolation = insolation_annual_mean(:,:) 
+  insolation = insolation_annual_mean(:,:)
 
 !########################################################################!
 ! INSOLATION FOR DAY = FIXED_DAY_VALUE COMPUTED FROM BERGER ANALYTICAL FORMULATION FOR DAILY-MEAN INSOLATION
@@ -500,7 +500,7 @@ else ! use seasonally varying insolation based on orb_year
 
 ! Calculate daily mean insolation as function of latitude, calendar day of year, and orbital parameters (Ian, Feb. 2009)
 ! The calendar is referenced to the vernal equinox (day=0)
-! lambda (or solar longitude) is the angular distance along Earth's orbit measured from vernal equinox (21 March). 
+! lambda (or solar longitude) is the angular distance along Earth's orbit measured from vernal equinox (21 March).
 ! Estimate lambda from calendar day using an approximation from Berger 1978 section 3.
   beta=sqrt(1.-orb_ecc**2)
   lambda0  = 2.*pi*time_in/(days_in_year*secs_per_day)
@@ -508,14 +508,14 @@ else ! use seasonally varying insolation based on orb_year
          -2.*( (1./2.*orb_ecc+1./8.*orb_ecc**3)*(1.+beta)*sin(-orb_long_perh*deg_to_rad) &
          -1./4.*orb_ecc**2*(1./2.+beta)*sin(-2.*orb_long_perh*deg_to_rad) &
          +1./8.*orb_ecc**3*(1./3.+beta)*(sin(-3.*orb_long_perh*deg_to_rad)) )
-  lambda = lambda_m & 
+  lambda = lambda_m &
         + (2.*orb_ecc-1./4.*orb_ecc**3)*sin(lambda_m-orb_long_perh*deg_to_rad) &
         + (5./4.)*orb_ecc**2*sin(2*(lambda_m-orb_long_perh*deg_to_rad)) &
         + (13./12.)*orb_ecc**3*sin(3*(lambda_m-orb_long_perh*deg_to_rad))
-  
+
   delta = asin(sin(orb_obl*deg_to_rad)*sin(lambda)); ! declination of the sun
 
-  ! hour angle 
+  ! hour angle
   h0_arg  = -tan(lat(:,:)) * tan(delta)
   where (h0_arg .le. -1.)
      h0 = pi
@@ -524,12 +524,12 @@ else ! use seasonally varying insolation based on orb_year
   elsewhere
      h0 = acos(h0_arg)
   endwhere
-  
+
   ! Insolation: Berger 1978 eq (10)
   insolation = solar_constant/pi * (1.+orb_ecc*cos(lambda-orb_long_perh*deg_to_rad))**2 / &
   &   (1.-orb_ecc**2)**2 * ( h0*sin(lat(:,:))*sin(delta) + &
   &   cos(lat(:,:))*cos(delta)*sin(h0) )
-  
+
 end if
 
              ! === End TOA downwelling shortwave calculation ===  !
@@ -570,7 +570,7 @@ surf_lw_down     = lw_down(:,:,n+1)
 sw_down_toa      = sw_down(:,:,1)
 net_surf_sw_down = sw_down(:,:,n+1)*(1. - albedo(:,:))
 
-    
+
 !------- downward lw flux surface -------
       if ( id_lwdn_sfc > 0 ) then
           used = send_data ( id_lwdn_sfc, surf_lw_down, Time_diag)
@@ -634,7 +634,7 @@ end do
 
 
 net_lw_toa  = lw_up(:,:,1)
-net_lw_surf = lw_flux(:, :, n+1)        
+net_lw_surf = lw_flux(:, :, n+1)
 
 !------- outgoing lw flux toa (olr) -------
       if ( id_lwup_toa > 0 ) then
@@ -662,16 +662,16 @@ net_lw_surf = lw_flux(:, :, n+1)
       endif
 !Kyle, 2016
 !------- longwave upward radiative flux (at half levels) --------
-      if ( id_flux_lwup > 0 ) then 
+      if ( id_flux_lwup > 0 ) then
          used = send_data ( id_flux_lwup, lw_up,   Time_diag)
-      endif   
+      endif
 !------- longwave downward radiative flux (at half levels) --------
-      if ( id_flux_lwdn > 0 ) then 
+      if ( id_flux_lwdn > 0 ) then
          used = send_data ( id_flux_lwdn, lw_down, Time_diag)
-      endif 
-!End Kyle, 2016 
+      endif
+!End Kyle, 2016
 !------- longwave radiative flux (at half levels) --------
-      if ( id_flux_lw > 0 ) then 
+      if ( id_flux_lw > 0 ) then
          used = send_data ( id_flux_lw, lw_flux, Time_diag)
       endif
 !------- shortwave radiative flux (at half levels) --------
@@ -684,21 +684,17 @@ end subroutine radiation_up
 
 ! ==================================================================================
 
-                                                                      
+
 subroutine radiation_end
-                                                                                                      
-deallocate (b, tdt_rad, tdt_solar) 
+
+deallocate (b, tdt_rad, tdt_solar)
 deallocate (lw_up, lw_down, lw_flux, sw_up, sw_down, sw_flux, rad_flux)
 deallocate (b_surf, net_lw_toa, net_lw_surf, sw_down_toa, albedo)
 deallocate (lw_dtrans, lw_tau, sw_tau)
-deallocate (insolation, lw_tau0, sw_tau0, h0, h0_arg, h0_ann, h0_arg_ann) 
+deallocate (insolation, lw_tau0, sw_tau0, h0, h0_arg, h0_ann, h0_arg_ann)
 
 end subroutine radiation_end
 
 ! ==================================================================================
 
 end module radiation_mod
-
-
-
-
