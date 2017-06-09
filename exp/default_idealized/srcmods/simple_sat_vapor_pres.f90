@@ -37,7 +37,10 @@ module simple_sat_vapor_pres_mod
 implicit none
 private
 
- public :: lookup_es
+ public :: lookup_es, lookup_des
+ public :: escomp, descomp ! for backward compatibility
+                           ! use lookup_es, lookup_des instead
+
 
 
 ! ! !-----------------------------------------------------------------------
