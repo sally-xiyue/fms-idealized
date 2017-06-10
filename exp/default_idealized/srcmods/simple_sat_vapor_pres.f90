@@ -434,7 +434,7 @@ real, parameter :: es_table(512) = (/ 1.00000000e-11,  1.00000000e-11,  1.000000
    5.75781966e+03, 5.86128100e+03, 5.96626981e+03, 6.07280317e+03/)
 
   real, parameter :: dx = t_table(2) - t_table(1)
-  real, parameter :: idx = 1.0 / dx
+  real, parameter :: dxi = 1.0 / dx
   real, parameter :: x_min = t_table(1)
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
@@ -454,11 +454,11 @@ contains
 
 ! ind = minloc(abs(t_table - temp), 1)
 ! esat = es_table(ind)
-ind = floor((temp - x_min)*idx)
+ind = floor((temp - x_min)*dxi)
 y1 = es_table(ind)
 y2 = es_table(ind + 1)
-x1 = x_min + idx * ind
-esat = y1 + (temp - x1) * (y2 - y1) * idx
+x1 = x_min + dx * ind
+esat = y1 + (temp - x1) * (y2 - y1) * dxi
 
 !-----------------------------------------------
 
@@ -477,11 +477,11 @@ esat = y1 + (temp - x1) * (y2 - y1) * idx
     do i = 1, size(temp)
       ! ind = minloc(abs(t_table - temp(i)), 1)
       ! esat(i) = es_table(ind)
-      ind = floor((temp(i) - x_min)*idx)
+      ind = floor((temp(i) - x_min)*dxi)
       y1 = es_table(ind)
       y2 = es_table(ind + 1)
-      x1 = x_min + idx * ind
-      esat(i) = y1 + (temp(i) - x1) * (y2 - y1) * idx
+      x1 = x_min + dx * ind
+      esat(i) = y1 + (temp(i) - x1) * (y2 - y1) * dxi
     enddo
 !-----------------------------------------------
 
@@ -501,11 +501,11 @@ esat = y1 + (temp - x1) * (y2 - y1) * idx
     do j = 1, size(temp,2)
       ! ind = minloc(abs(t_table - temp(i, j)), 1)
       ! esat(i,j) = es_table(ind)
-      ind = floor((temp(i, j) - x_min)*idx)
+      ind = floor((temp(i, j) - x_min)*dxi)
       y1 = es_table(ind)
       y2 = es_table(ind + 1)
-      x1 = x_min + idx * ind
-      esat(i, j) = y1 + (temp(i, j) - x1) * (y2 - y1) * idx
+      x1 = x_min + dx * ind
+      esat(i, j) = y1 + (temp(i, j) - x1) * (y2 - y1) * dxi
     enddo
     enddo
 
@@ -528,11 +528,11 @@ esat = y1 + (temp - x1) * (y2 - y1) * idx
     do k = 1, size(temp,3)
       ! ind = minloc(abs(t_table - temp(i,j,k)), 1)
       ! esat(i,j,k) = es_table(ind)
-      ind = floor((temp(i, j, k) - x_min)*idx)
+      ind = floor((temp(i, j, k) - x_min)*dxi)
       y1 = es_table(ind)
       y2 = es_table(ind + 1)
-      x1 = x_min + idx * ind
-      esat(i, j, k) = y1 + (temp(i, j, k) - x1) * (y2 - y1) * idx
+      x1 = x_min + dx * ind
+      esat(i, j, k) = y1 + (temp(i, j, k) - x1) * (y2 - y1) * dxi
     enddo
     enddo
     enddo
@@ -550,11 +550,11 @@ esat = y1 + (temp - x1) * (y2 - y1) * idx
   real :: y1, y2, x1
  !-----------------------------------------------
 
- ind = floor((temp - x_min)*idx)
+ ind = floor((temp - x_min)*dxi)
  y1 = des_table(ind)
  y2 = des_table(ind + 1)
- x1 = x_min + idx * ind
- desat = y1 + (temp - x1) * (y2 - y1) * idx
+ x1 = x_min + dx * ind
+ desat = y1 + (temp - x1) * (y2 - y1) * dxi
 
  !-----------------------------------------------
 
@@ -571,11 +571,11 @@ esat = y1 + (temp - x1) * (y2 - y1) * idx
  !-----------------------------------------------
 
      do i = 1, size(temp)
-       ind = floor((temp(i) - x_min)*idx)
+       ind = floor((temp(i) - x_min)*dxi)
        y1 = des_table(ind)
        y2 = des_table(ind + 1)
-       x1 = x_min + idx * ind
-       desat(i) = y1 + (temp(i) - x1) * (y2 - y1) * idx
+       x1 = x_min + dx * ind
+       desat(i) = y1 + (temp(i) - x1) * (y2 - y1) * dxi
      enddo
  !-----------------------------------------------
 
@@ -593,11 +593,11 @@ esat = y1 + (temp - x1) * (y2 - y1) * idx
 
      do i = 1, size(temp,1)
      do j = 1, size(temp,2)
-       ind = floor((temp(i, j) - x_min)*idx)
+       ind = floor((temp(i, j) - x_min)*dxi)
        y1 = des_table(ind)
        y2 = des_table(ind + 1)
-       x1 = x_min + idx * ind
-       desat(i, j) = y1 + (temp(i, j) - x1) * (y2 - y1) * idx
+       x1 = x_min + dx * ind
+       desat(i, j) = y1 + (temp(i, j) - x1) * (y2 - y1) * dxi
      enddo
      enddo
 
@@ -618,11 +618,11 @@ esat = y1 + (temp - x1) * (y2 - y1) * idx
      do i = 1, size(temp,1)
      do j = 1, size(temp,2)
      do k = 1, size(temp,3)
-       ind = floor((temp(i, j, k) - x_min)*idx)
+       ind = floor((temp(i, j, k) - x_min)*dxi)
        y1 = des_table(ind)
        y2 = des_table(ind + 1)
-       x1 = x_min + idx * ind
-       desat(i, j, k) = y1 + (temp(i, j, k) - x1) * (y2 - y1) * idx
+       x1 = x_min + dx * ind
+       desat(i, j, k) = y1 + (temp(i, j, k) - x1) * (y2 - y1) * dxi
      enddo
      enddo
      enddo
