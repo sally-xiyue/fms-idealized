@@ -24,7 +24,7 @@ echo Working directory is $cwd
 set model_type     = moist                          # if "moist", the moist model is run and if "dry, it is the dry. "moist_hydro" is for the bucket hydrology model. The namelists for the parameters are below (L212).
 set machine        = euler                          # machine = euler or brutus, use the alternate runscripts for fram, or change mkmf templates, submission commands, and modules for other machines
 set analysis_type  = 3d                             # choose type of analysis: 2d (zonally averaged) or 3d (zonally varying) outputs
-set run_name       = 1_00x_seaice_test                       # label for run; output dir and working dir are run_name specific
+set run_name       = 1_00x_seaice_no                       # label for run; output dir and working dir are run_name specific
 set run_script     = $cwd/run_test                  # path/name of this run script (for resubmit)
 
 set exp_home       = $cwd:h                         # directory containing run/$run_script and input/
@@ -40,9 +40,9 @@ endif
 
 echo $fms_home
 
-set days            = 360                            # length of integration
+set days            = 200                            # length of integration
 set runs_per_script = 1                             # number of runs within this script
-set start_analysis  = 0                             # number of script run at which to start analysis (after spin-up)
+set start_analysis  = 1                             # number of script run at which to start analysis (after spin-up)
 set num_script_runs = 1                             # how many times to resubmit script to queue
 set days_per_segment = ${days}                      # days per segment of analysis (for seasonally-varying analysis)
 
@@ -299,9 +299,9 @@ EOF
 		tapio_forcing        = .false.,
 		hs                   = .false.,
 		atmos_water_correction = .true.,
-                roughness_mom        = 6e-05,
-                roughness_heat       = 6e-05,
-                roughness_moist      = 6e-05,
+    roughness_mom        = 5e-03,
+		roughness_heat       = 1e-05,
+		roughness_moist      = 1e-05,
 		bucket               = .false./
 
 EOF
@@ -378,7 +378,7 @@ EOF
         lw_tau0_eqtr                 = 7.2,
         del_sol                      = 1.2,
         atm_abs                      = 0.22,
-        days_in_year                 = 360,
+        days_in_year                 = 200,
         orb_long_perh                = 0,
         orb_ecc                      = 0.0,
         orb_obl                      = 23.5 /
@@ -387,10 +387,10 @@ EOF
       &mixed_layer_nml
         depth              = 1.0,
         qflux_amp          = 0.0,
-        qflux_width        = 0.0,
+        qflux_width        = 16.0,
         zonasym_amp        = 0.0,
-        zonasym_width      = 0.0,
-        zonasym_peaklat    = 0.0,
+        zonasym_width      = 16.0,
+        zonasym_peaklat    = 16.0,
         walker_e_lon       = 90.0,
         walker_w_lon       = 180.0,
         walker_n_lat       = 15.0,
@@ -402,7 +402,9 @@ EOF
         ekman_layer        = .false.,
         load_qflux         = .false.,
         evaporation        = .true.,
-		depth_land         = 40.0/
+		    depth_land         = 40.0,
+        sea_ice_in_mixed_layer = .false.,
+        ice_as_albedo_only = .false. /
 
 
       &qe_moist_convection_nml
