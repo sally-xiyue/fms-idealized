@@ -611,9 +611,9 @@ if(mixed_layer_bc) then
  t_ml = t_surf ! Added by XZ 02/2018
  !call mixed_layer_init(is, ie, js, je, num_levels, t_surf, get_axis_id(), Time)
  !call mixed_layer_init(is, ie, js, je, num_levels, t_surf, bucket_depth, ocean_mask, get_axis_id(), Time)
- call mixed_layer_init(is, ie, js, je, num_levels, t_surf, q_surf, u_surf, v_surf, gust, &
-										 ! q_surf, u_surf, v_surf, gust added by ZTAN 06/10/2011
-                               bucket_depth, ocean_mask, get_axis_id(), Time)
+ ! call mixed_layer_init(is, ie, js, je, num_levels, t_surf, q_surf, u_surf, v_surf, gust, &
+ ! 									 ! q_surf, u_surf, v_surf, gust added by ZTAN 06/10/2011
+ !                               bucket_depth, ocean_mask, get_axis_id(), Time)
 call mixed_layer_init(is, ie, js, je, num_levels, t_surf, h_ice, a_ice, t_ml, q_surf, u_surf, v_surf, gust, &
                       bucket_depth, ocean_mask, get_axis_id(), Time)
 endif
