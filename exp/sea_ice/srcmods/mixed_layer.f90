@@ -537,7 +537,7 @@ real :: rad_lat_std
 
 ! for sfc_melt_from_file, sea ice by Ian Eisenman, XZ 2/10/2018
 integer :: i, n, seconds, days
-real    :: days_in_year    = 360 ! how many model days in solar year
+real    :: days_in_year    = 200 ! how many model days in solar year
 real    :: day = 0.0
 
 if(.not.module_is_initialized) then
@@ -747,23 +747,23 @@ if ( sea_ice_in_mixed_layer .and. .not. ice_as_albedo_only ) then ! === use sea 
     ! interp1( ( (1:num_input_times)-0.5 )*days_in_year/num_input_times, albedo(x,y,:), day )
     ! = interp1( 1:num_input_times, albedo(x,y,:), day*num_input_times/days_in_year+0.5 )
     ! find model time
-    call get_time(Time,seconds,days)
-    day = days + seconds/86400
-    ! make sure day is between 0 and days_in_year=360
-    do while (day .lt. 0)
-      day = day + days_in_year
-    end do
-    do while (day .ge. days_in_year)
-      day = day - days_in_year
-    end do
-    ! find index of nearest input time below
-    n=floor(day*num_input_times/days_in_year+1.5)
-    do i = 1, size(input_t_sfc,1)
-      do j = 1, size(input_t_sfc,2)
-        t_surf_for_melt(i,j)=input_t_sfc(i,j,n) + (input_t_sfc(i,j,n+1)-input_t_sfc(i,j,n)) * &
-           ( (day*num_input_times/days_in_year+1.5)-n )
-      enddo
-    enddo
+    ! call get_time(Time,seconds,days)
+    ! day = days + seconds/86400
+    ! ! make sure day is between 0 and days_in_year=360
+    ! do while (day .lt. 0)
+    !   day = day + days_in_year
+    ! end do
+    ! do while (day .ge. days_in_year)
+    !   day = day - days_in_year
+    ! end do
+    ! ! find index of nearest input time below
+    ! n=floor(day*num_input_times/days_in_year+1.5)
+    ! do i = 1, size(input_t_sfc,1)
+    !   do j = 1, size(input_t_sfc,2)
+    !     t_surf_for_melt(i,j)=input_t_sfc(i,j,n) + (input_t_sfc(i,j,n+1)-input_t_sfc(i,j,n)) * &
+    !        ( (day*num_input_times/days_in_year+1.5)-n )
+    !   enddo
+    ! enddo
     ! compute surface melt
     where ( h_ice + delta_h_ice .gt. 0 ) ! surface is ice-covered
       ! calculate increment in steady-state ice surface temperature
@@ -771,9 +771,9 @@ if ( sea_ice_in_mixed_layer .and. .not. ice_as_albedo_only ) then ! === use sea 
                     / ( k_ice / (h_ice + delta_h_ice) + dFdt_surf )
       ! in grid boxes with ice, wherever input t_surf=t_fr, make t_surf=t_fr;
       ! otherwise, let t_surf be whatever it wants (even t_surf>t_fr)
-      where ( t_surf_for_melt .ge. TFREEZE ) ! surface ablation
-        delta_t_ice = TFREEZE - t_surf
-      endwhere
+      ! where ( t_surf_for_melt .ge. TFREEZE ) ! surface ablation
+      !   delta_t_ice = TFREEZE - t_surf
+      ! endwhere
       ! surface is ice-covered, so update t_surf as ice surface temperature
       t_surf = t_surf + delta_t_ice
     elsewhere ! ice-free, so update t_surf as mixed layer temperature
