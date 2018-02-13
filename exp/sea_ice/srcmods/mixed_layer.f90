@@ -12,7 +12,7 @@ use                  fms_mod, only: stdlog, check_nml_error, close_file,&
                                     read_data, write_data, open_file, &
                                     nullify_domain
 
-use            constants_mod, only: HLV, PI, RHO_CP, CP_AIR, CP_OCEAN, OMEGA, RADIUS
+use            constants_mod, only: HLV, PI, RHO_CP, CP_AIR, CP_OCEAN, OMEGA, RADIUS, TFREEZE ! TFREEZE is FW freezing pt in Kelvin, XZ 02/2018
 
 use         diag_manager_mod, only: register_diag_field, send_data
 
@@ -61,13 +61,13 @@ real    :: walker_n_amp    = 0.0
 real    :: walker_s_amp    = 0.0
 real    :: walker_width_ew = 30.0
 real    :: walker_width_ns = 7.0
-! Sea ice parameters by Ian Eisenman
+! Sea ice parameters by Ian Eisenman, XZ 02/2018
 logical :: sea_ice_in_mixed_layer = .true.  ! include sea ice model
 logical :: ice_as_albedo_only = .false.     ! no sea ice thermodynamics, but change albedo when ML temp = TFREEZE
 logical :: sfc_melt_from_file = .false.     ! whether to compute ice surface melt based on input surface temperature file
 character(len=64) :: sfc_melt_file = 'INPUT/t_sfc.nc' ! (optional) specified t_surf for ice surface melt
 integer  :: num_input_times = 72   ! number of times during year in input t_surf file
-! parameters for sea ice model
+! parameters for sea ice model, XZ 02/2018
 real :: L_ice = 3e8 ! latent heat of fusion (J/m^3)
 real, parameter  :: k_ice = 2 ! conductivity of ice (W/m/K)
 real, parameter  :: ice_basal_flux_const = 120 ! linear coefficient for heat flux from ocean to ice base (W/m^2/K)
@@ -76,7 +76,8 @@ real, parameter  :: t_ice_base = tfreeze ! temperature at base of ice, taken to 
 namelist/mixed_layer_nml/ evaporation, qflux_amp, depth, depth_land, qflux_width, load_qflux, ekman_layer, &
 						zonasym_amp, zonasym_width, zonasym_peaklat, &
            				walker_e_lon, walker_w_lon, walker_n_lat, walker_s_lat, &
-           				walker_n_amp, walker_s_amp, walker_width_ew, walker_width_ns
+           				walker_n_amp, walker_s_amp, walker_width_ew, walker_width_ns, &
+                  sea_ice_in_mixed_layer, ice_as_albedo_only, sfc_melt_from_file ! Namelist option added XZ 02/2018
 
 !=================================================================================================================================
 
@@ -95,7 +96,7 @@ integer ::                                                                    &
      id_flux_walker,       &   ! Walker-like oceanic flux by T.Merlis, ZTAN 05/03/2013
      id_flux_u,            &   ! surface stress
      id_flux_t                 ! sensible heat flux at surface
-     ! Sea ice by Ian Eisenman
+     ! Sea ice by Ian Eisenman, XZ 02/2018
      id_h_ice,             &   ! sea ice thickness
      id_a_ice,             &   ! sea ice fractional area
      id_t_ml,              &   ! mixed layer temperature
@@ -107,7 +108,7 @@ real, allocatable, dimension(:,:)   ::                                        &
      walker_flux,           &   ! The Walker flux by T.Merlis, ZTAN 05/03/2013
      rad_lat_2d,            &   ! latitude in radians
      rad_long_2d                ! longitude in radians
-     ! Sea ice by Ian Eisenman
+     ! Sea ice by Ian Eisenman, XZ 02/2018
      t_surf_for_melt            ! if sfc_melt_from_file, current time t_surf from input file (otherwise, =t_surf)
 
 real, allocatable, dimension(:)   ::     &
@@ -131,7 +132,7 @@ real, allocatable, dimension(:,:)   ::                                        &
      eff_heat_capacity,     &   ! Effective heat capacity
      delta_t_surf,          &   ! Increment in surface temperature
      depth_map                  ! 2d depth for vaiable heat capacity
-     ! Sea ice by Ian Eisenman
+     ! Sea ice by Ian Eisenman, XZ 02/2018
      dFdt_surf,             &   ! d(corrected_flux)/d(t_surf), for calculation of ice sfc temperature
      delta_t_ml,            &   ! Increment in mixed layer temperature
      delta_h_ice,           &   ! Increment in sea ice thickness
@@ -166,10 +167,10 @@ real, allocatable, dimension(:,:)  ::                                         &
      rad_lat_del,      &
      rad_lat_diff
 
-real, allocatable, dimension(:,:,:) ::                                                     &
+real, allocatable, dimension(:,:,:) ::                                        &
      smooth_factor,    &
      smooth_field_X,   &
-     ! Sea ice by Ian Eisenman
+     ! Sea ice by Ian Eisenman, XZ 02/2018
      input_t_sfc            ! Sfc temp read from file for ice sfc melt
 
 
@@ -180,7 +181,7 @@ real inv_cp_air
 contains
 !=================================================================================================================================
 
-subroutine mixed_layer_init(is, ie, js, je, num_levels, t_surf, q_surf, u_surf, v_surf, gust, &
+subroutine mixed_layer_init(is, ie, js, je, num_levels, t_surf, h_ice, a_ice, t_ml, q_surf, u_surf, v_surf, gust, &
            bucket_depth, ocean_mask, axes, Time)
 
 type(time_type), intent(in)       :: Time
@@ -238,7 +239,7 @@ allocate(eff_heat_capacity       (is:ie, js:je))
 allocate(corrected_flux          (is:ie, js:je))
 allocate(t_surf_dependence       (is:ie, js:je))
 allocate(depth_map               (is:ie, js:je))
-! Sea ice by Ian Eisenman
+! Sea ice by Ian Eisenman, XZ 02/2018
 allocate(t_surf_for_melt         (is:ie, js:je))
 allocate(dFdt_surf               (is:ie, js:je))
 allocate(delta_t_ml              (is:ie, js:je))
@@ -275,7 +276,7 @@ allocate(smooth_factor              (is:ie, 1:lat_max, 1:lat_max))
 allocate(smooth_field_X             (is:ie, 1:lat_max, 1:lat_max))
 endif
 
-! Sea ice by Ian Eisenman
+! Sea ice by Ian Eisenman, XZ 02/2018
 ! read seasonally-varying input_sfc_melt(lat,lon,time)
 if ( sfc_melt_from_file .and. file_exist(trim(sfc_melt_file)) ) then
   do j = 1, num_input_times
@@ -327,6 +328,13 @@ id_flux_zonasym = register_diag_field(mod_name, 'flux_zonasym',        &
                                  axes(1:2), Time, 'Equivalent flux of zonal asymmetry','watts/m2')
 id_flux_walker  = register_diag_field(mod_name, 'flux_walker',        &
                                  axes(1:2), Time, 'Equivalent flux of Walker ocean flux','watts/m2')
+! sea ice by Ian Eisenman, XZ 02/2018
+id_h_ice = register_diag_field(mod_name, 'h_ice',        &
+                                axes(1:2), Time, 'sea ice thickness','m')
+id_a_ice = register_diag_field(mod_name, 'a_ice',        &
+                                axes(1:2), Time, 'sea ice area','fraction of grid box')
+id_t_ml = register_diag_field(mod_name, 't_ml',        &
+                                axes(1:2), Time, 'mixed layer tempeature','K')
 
 ! set up depth_map for spatially varying heat capacity  ! Added by LJJ
 where (ocean_mask > 0.0)
@@ -677,7 +685,7 @@ endif
 !
 ! Implement mixed layer surface boundary condition
 !
-corrected_flux = - net_surf_sw_down - surf_lw_down + alpha_t * CP_AIR + alpha_lw + ocean_qflux
+corrected_flux = - net_surf_sw_down - surf_lw_down + alpha_t * CP_AIR + alpha_lw ! + ocean_qflux, XZ 02/2018
 t_surf_dependence = beta_t * CP_AIR + beta_lw
 
 
@@ -686,9 +694,10 @@ if (evaporation) then
   t_surf_dependence = t_surf_dependence + beta_q * HLV
 endif
 
-! for calculation of ice sfc temperature, sea ice by Ian Eisenman, XZ 2/10/2018
+! for calculation of ice sfc temperature, sea ice by Ian Eisenman, XZ 02/2018
 dFdt_surf = dhdt_surf + drdt_surf + HLV * (dedt_surf) ! d(corrected_flux)/d(T_surf)
 
+! Sea ice by Ian Eisenman, XZ 02/2018
 ! === (3) surface temperature increment is calculated with
 ! explicit forward time step using flux corrected for implicit atm;
 ! next, (4) surface state is updated  ===
@@ -787,13 +796,6 @@ if ( sea_ice_in_mixed_layer .and. .not. ice_as_albedo_only ) then ! === use sea 
     endwhere
   endif
 
-  ! where ( land_mask .ne. 0 ) ! land: do not evolve sea ice
-  !   delta_t_ml = - ( corrected_flux + ocean_qflux) * dt/(depth_land*RHO_CP)
-  !   delta_h_ice = 0 ! do not evolve sea ice (no ice model)
-  !   ! t_surf and t_ml are equal (they differ only when mixed layer is ice-covered)
-  !   t_surf = t_ml + delta_t_ml
-  ! endwhere
-
 else ! === do not use sea ice model: just evolve mixed layer with explicit step ===
   ! where ( land_mask .eq. 0 ) ! ocean
   !   delta_t_ml = - ( corrected_flux + ocean_qflux) * dt/(depth*RHO_CP)
@@ -825,8 +827,14 @@ if ( sea_ice_in_mixed_layer .and. ice_as_albedo_only ) then ! === model with onl
   endwhere
 endif
 
+! ======================================================================
 
-! Original implicit stepping
+! === (5) save increments in T and Q for lowest atm layer ===
+
+Tri_surf%delta_t = fn_t
+Tri_surf%delta_q = fn_q
+
+! Original implicit stepping is commented out, XZ 02/2018
 !
 ! ! Now update the mixed layer surface temperature using an implicit step
 ! !
@@ -845,8 +853,8 @@ endif
 !
 ! Finally calculate the increments for the lowest atmospheric layer
 !
-Tri_surf%delta_t = fn_t + en_t * delta_t_surf
-Tri_surf%delta_q = fn_q + en_q * delta_t_surf
+! Tri_surf%delta_t = fn_t + en_t * delta_t_surf
+! Tri_surf%delta_q = fn_q + en_q * delta_t_surf
 
 
 !
@@ -869,9 +877,9 @@ end subroutine mixed_layer
 
 !=================================================================================================================================
 
-subroutine mixed_layer_end(t_surf, q_surf, u_surf, v_surf, gust, bucket_depth)
+subroutine mixed_layer_end(t_surf, h_ice, a_ice, t_ml, q_surf, u_surf, v_surf, gust, bucket_depth)
 
-real, intent(inout), dimension(:,:) :: t_surf, q_surf, u_surf, v_surf, gust, h_ice, a_ice, t_ml
+real, intent(inout), dimension(:,:) :: t_surf, q_surf, u_surf, v_surf, gust, h_ice, a_ice, t_ml ! Added by XZ 02/2018
 real, intent(inout), dimension(:,:,:) :: bucket_depth
 integer:: unit
 
