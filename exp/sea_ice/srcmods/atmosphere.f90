@@ -174,7 +174,7 @@ real, allocatable, dimension(:,:)   ::                       &
      ! Sea ice by Ian Eisenman, added by XZ 02/2018
      h_ice,                &   ! sea ice thickness
      a_ice,                &   ! sea ice area as fraction of grid box (either 0 or 1)
-     t_ml,                 &   ! temperature of mixed layer (.ne. t_surf where ice is present)
+     t_ml                      ! temperature of mixed layer (.ne. t_surf where ice is present)
 
 
 real, allocatable, dimension(:,:,:) ::                                        &
