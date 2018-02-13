@@ -95,11 +95,11 @@ integer ::                                                                    &
      id_flux_zonasym,      &   ! zonal asymmetric oceanic flux, ZTAN 06/2011
      id_flux_walker,       &   ! Walker-like oceanic flux by T.Merlis, ZTAN 05/03/2013
      id_flux_u,            &   ! surface stress
-     id_flux_t                 ! sensible heat flux at surface
+     id_flux_t,            &   ! sensible heat flux at surface
      ! Sea ice by Ian Eisenman, XZ 02/2018
      id_h_ice,             &   ! sea ice thickness
      id_a_ice,             &   ! sea ice fractional area
-     id_t_ml,              &   ! mixed layer temperature
+     id_t_ml                   ! mixed layer temperature
 
 real, allocatable, dimension(:,:)   ::                                        &
      ocean_qflux,           &   ! Q-flux
@@ -107,7 +107,7 @@ real, allocatable, dimension(:,:)   ::                                        &
      zon_asym_flux,         &   ! The extra flux due to zonal asymmetry, ZTAN 06/2011
      walker_flux,           &   ! The Walker flux by T.Merlis, ZTAN 05/03/2013
      rad_lat_2d,            &   ! latitude in radians
-     rad_long_2d                ! longitude in radians
+     rad_long_2d,           &   ! longitude in radians
      ! Sea ice by Ian Eisenman, XZ 02/2018
      t_surf_for_melt            ! if sfc_melt_from_file, current time t_surf from input file (otherwise, =t_surf)
 
@@ -131,7 +131,7 @@ real, allocatable, dimension(:,:)   ::                                        &
      corrected_flux,        &   !
      eff_heat_capacity,     &   ! Effective heat capacity
      delta_t_surf,          &   ! Increment in surface temperature
-     depth_map                  ! 2d depth for vaiable heat capacity
+     depth_map,             &   ! 2d depth for vaiable heat capacity
      ! Sea ice by Ian Eisenman, XZ 02/2018
      dFdt_surf,             &   ! d(corrected_flux)/d(t_surf), for calculation of ice sfc temperature
      delta_t_ml,            &   ! Increment in mixed layer temperature
@@ -536,7 +536,7 @@ integer :: lat_max, nh_lath, sh_lath, j
 real :: rad_lat_std
 
 ! for sfc_melt_from_file, sea ice by Ian Eisenman, XZ 2/10/2018
-integer :: i, j, n, seconds, days
+integer :: i, n, seconds, days
 real    :: days_in_year    = 360 ! how many model days in solar year
 real    :: day = 0.0
 
