@@ -1027,7 +1027,8 @@ if(two_stream) then
                        p_half(:,:,:),                  &
                        tg(:,:,:,previous),             &
                        net_surf_sw_down(:,:),          &
-                       surf_lw_down(:,:))
+                       surf_lw_down(:,:),              &
+                       a_ice(:,:))
 end if
 
 

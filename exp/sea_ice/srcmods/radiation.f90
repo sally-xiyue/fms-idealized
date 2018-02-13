@@ -53,6 +53,8 @@ real    :: atm_abs         = 0.2
 real    :: sw_diff         = 0.0
 real    :: lw_linear_frac  = 0.1
 real    :: albedo_value    = 0.3
+real    :: albedo_ocn      = 0.1  ! surface albedo where there is not sea ice, XZ 02/2018
+real    :: albedo_ice      = 0.8  ! surface albedo where there is sea ice, XZ 02/2018
 real    :: lw_tau_exponent  = 4.0
 real    :: sw_tau_exponent  = 4.0
 
@@ -86,7 +88,7 @@ real, allocatable, dimension(:,:)   :: h0_ann, h0_arg_ann, insolation_ann, insol
 
 real, save :: pi, deg_to_rad , rad_to_deg
 
-namelist/radiation_nml/ albedo_value, lw_linear_frac, solar_constant, del_sol, odp, &
+namelist/radiation_nml/ albedo_value, albedo_ocn, albedo_ice, lw_linear_frac, solar_constant, del_sol, odp, &
                         lw_tau0_eqtr, lw_tau0_pole, atm_abs, lw_tau_exponent, sw_tau_exponent, &
                         perpetual_equinox, annual_mean, fixed_day, fixed_day_value, days_in_year, &
                         orb_year, orb_ecc, orb_obl, orb_long_perh
@@ -95,7 +97,8 @@ namelist/radiation_nml/ albedo_value, lw_linear_frac, solar_constant, del_sol, o
 !-------------------- diagnostics fields -------------------------------
 
 integer :: id_lwup_toa, id_swdn_sfc, id_swdn_toa, id_lwdn_sfc, id_lwup_sfc, id_net_lw_surf, &
-           id_tdt_rad, id_flux_rad, id_flux_lw, id_flux_lwdn, id_flux_lwup, id_flux_sw, id_tdt_solar
+           id_tdt_rad, id_flux_rad, id_flux_lw, id_flux_lwdn, id_flux_lwup, id_flux_sw, id_tdt_solar, &
+           id_albedo ! Added by XZ 02/2018
 
 character(len=10), parameter :: mod_name = 'two_stream'
 
@@ -439,13 +442,19 @@ allocate (sw_tau0          (ie-is+1, je-js+1))
     !            'Net shortwave radiative flux (positive up)', &
     !            'W/m^2', missing_value=missing_value               )
 
+    ! Added by XZ, 02/2018
+    id_albedo = &
+        register_diag_field ( mod_name, 'albedo', axes(1:2), Time, &
+               'Surface albedo', &
+               'dimensionless', missing_value=missing_value     )
+
 return
 end subroutine radiation_init
 
 ! ==================================================================================
 
 subroutine radiation_down (is, js, Time_diag, lat, p_half, t,         &
-                           net_surf_sw_down, surf_lw_down)
+                           net_surf_sw_down, surf_lw_down, a_ice)
 
 ! Begin the radiation calculation by computing downward fluxes.
 ! This part of the calculation does not depend on the surface temperature.
@@ -458,6 +467,7 @@ real, intent(in) , dimension(:,:)   :: lat
 real, intent(out) , dimension(:,:)  :: net_surf_sw_down
 real, intent(out) , dimension(:,:)  :: surf_lw_down
 real, intent(in) , dimension(:,:,:) :: t, p_half
+real, intent(in) , dimension(:,:)   :: a_ice ! for surface albedo, XZ 02/2018
 
 integer :: i, j, k, n
 
@@ -540,8 +550,12 @@ lw_tau0 = lw_tau0_eqtr + (lw_tau0_pole - lw_tau0_eqtr)*sin(lat(:,:))**2
 sw_tau0 = (1.0 - sw_diff*sin(lat(:,:))**2)*atm_abs
 lw_tau0 = lw_tau0*odp
 
-! set a constant albedo for testing
-albedo(:,:) = albedo_value
+! ! set a constant albedo for testing
+! albedo(:,:) = albedo_value
+
+! Calculate surface albedo, added by XZ 02/2018
+! set albedo to albedo_ocn or albedo_ice depending on whether ice is present
+albedo(:,:) = (1-a_ice(:,:))*albedo_ocn + a_ice(:,:)*albedo_ice
 
 n = size(t,3)
 
@@ -582,6 +596,10 @@ net_surf_sw_down = sw_down(:,:,n+1)*(1. - albedo(:,:))
 !------- downward sw flux surface -------
       if ( id_swdn_sfc > 0 ) then
           used = send_data ( id_swdn_sfc, net_surf_sw_down, Time_diag)
+      endif
+!------- surface albedo -------
+      if ( id_albedo > 0 ) then
+          used = send_data ( id_albedo, albedo, Time_diag)
       endif
 
 return

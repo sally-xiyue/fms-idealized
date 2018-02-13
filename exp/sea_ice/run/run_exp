@@ -366,6 +366,8 @@ EOF
 
       &radiation_nml
         albedo_value                 = 0.38,
+        albedo_ocn                   = 0.1,
+        albedo_ice                   = 0.7, 
         lw_linear_frac               = 0.2,
         perpetual_equinox            =.false.,
         annual_mean                  =.false.,

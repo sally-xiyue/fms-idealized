@@ -120,7 +120,7 @@
  "mixed_layer",     "t_ml",                "t_ml",               "1x20days",     "all", .false.,  "none", 2,
  "mixed_layer",     "h_ice",               "h_ice",              "1x20days",     "all", .false.,  "none", 2,
  "mixed_layer",     "a_ice",               "a_ice",              "1x20days",     "all", .false.,  "none", 2,
-
+ "two_stream",      "albedo",              "albedo",             "1x20days",     "all", .false.,  "none", 2,
 #=============================================================================================
 #
 #  FORMATS FOR FILE ENTRIES (not all input values are used)
