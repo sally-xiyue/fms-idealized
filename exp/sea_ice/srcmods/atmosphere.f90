@@ -5,10 +5,10 @@ use                  fms_mod, only: set_domain, write_version_number, field_size
                                     write_data, nullify_domain, open_namelist_file, &
                                     check_nml_error, stdlog, close_file
 
-! grid_physics added by fridoo 01 feb 2012. Needed for tapio_forcing, used for the dry model 
+! grid_physics added by fridoo 01 feb 2012. Needed for tapio_forcing, used for the dry model
 use             grid_physics, only: grid_phys_init, compute_grid_physics,&
                                     surface_temperature
- 
+
 
 use            constants_mod, only: grav, pi, dens_h2o,&
                                     cp_air, HLV, kappa,rdgas,rvgas ! ZTAN 04/08/2012
@@ -36,13 +36,13 @@ use           hs_forcing_mod, only: hs_forcing_init, hs_forcing
 
 use        field_manager_mod, only: MODEL_ATMOS
 
-use       tracer_manager_mod, only: get_number_tracers 
+use       tracer_manager_mod, only: get_number_tracers
 
 use         surface_flux_mod, only: surface_flux
 use     vert_turb_driver_mod, only: vert_turb_driver_init,                    &
                                     vert_turb_driver, vert_turb_driver_end
 use            vert_diff_mod, only: gcm_vert_diff_init, gcm_vert_diff_down, &
-                                    gcm_vert_diff_up, gcm_vert_diff_end, & 
+                                    gcm_vert_diff_up, gcm_vert_diff_end, &
                                     surf_diff_type, gcm_vert_diff
 use            radiation_mod, only: radiation_init, radiation_down, radiation_up, &
                                     radiation_end
@@ -50,7 +50,7 @@ use            radiation_mod, only: radiation_init, radiation_down, radiation_up
 use       dry_convection_mod, only: dry_convection_init, dry_convection
 
 use          mixed_layer_mod, only: mixed_layer_init, mixed_layer, mixed_layer_end
-use          lscale_cond_mod, only: lscale_cond_init, lscale_cond 
+use          lscale_cond_mod, only: lscale_cond_init, lscale_cond
 use  qe_moist_convection_mod, only: qe_moist_convection_init, &
                                     qe_moist_convection,   &
                                     qe_moist_convection_end
@@ -59,12 +59,12 @@ use          diffusivity_mod, only: diffusivity_init !!don't know whether it is 
 
 
 implicit none
-private 
+private
 !=================================================================================================================================
 
 character(len=128) :: version= &
 '$Id: atmosphere.f90,v 13.0 2006/03/28 21:17:28 fms Exp $'
-      
+
 character(len=128) :: tagname= &
 '$Name: latest $'
 character(len=10), parameter :: mod_name='atmosphere'
@@ -97,9 +97,9 @@ real :: roughness_moist = 0.05
 real :: roughness_mom = 0.05
 
 ! added by LJJ
-logical :: bucket = .true. 
+logical :: bucket = .true.
 real :: init_bucket_depth = 20. ! default initial bucket depth in m LJJ
-real :: init_bucket_depth_land = 20. 
+real :: init_bucket_depth_land = 20.
 real :: land_left       = 90.
 real :: land_right      = 270.
 real :: land_bottom     = -10.
@@ -107,7 +107,7 @@ real :: land_top        = 10.
 real :: max_bucket_depth_land = 1000. ! default large value
 real :: robert_bucket = 0.04   ! default robert coefficient for bucket depth LJJ
 real :: raw_bucket = 0.53       ! default raw coefficient for bucket depth LJJ
-real :: damping_coeff_bucket = 200. ! default damping coefficient for diffusing of surface water - default is no diffusion. [degrees/year] 
+real :: damping_coeff_bucket = 200. ! default damping coefficient for diffusing of surface water - default is no diffusion. [degrees/year]
 ! end addition by LJJ
 
 namelist/atmosphere_nml/ turb, ldry_convection, lwet_convection, roughness_heat, two_stream, mixed_layer_bc,               &
@@ -170,7 +170,11 @@ real, allocatable, dimension(:,:)   ::                       &
      dedq_atm,             &   ! d(latent heat flux)/d(atmospheric mixing rat.)
      dtaudv_atm,           &   ! d(stress component)/d(atmos wind)
      fracland,             &   ! fraction of land in gridbox
-     rough                     ! roughness for vert_turb_driver
+     rough,                &   ! roughness for vert_turb_driver
+     ! Sea ice by Ian Eisenman, added by XZ 02/2018
+     h_ice,                &   ! sea ice thickness
+     a_ice,                &   ! sea ice area as fraction of grid box (either 0 or 1)
+     t_ml,                 &   ! temperature of mixed layer (.ne. t_surf where ice is present)
 
 
 real, allocatable, dimension(:,:,:) ::                                        &
@@ -192,22 +196,22 @@ real, allocatable, dimension(:,:,:) ::                                        &
      dt_tg_total, dt_qg_total, dt_tg_real1, dt_qg_real1, dt_tg_real2, dt_qg_real2, &
 ! Added by ZTAN 09/07/2013 for diagnosis of u and v tendencies from the spectral_dynamics
      dt_ug_fino, dt_vg_fino, dt_ug_vadv, dt_vg_vadv, dt_ug_hadv, dt_vg_hadv, &
-     dt_ug_pres, dt_vg_pres, dt_ug_cori, dt_vg_cori, & 
+     dt_ug_pres, dt_vg_pres, dt_ug_cori, dt_vg_cori, &
      dt_ug_total, dt_vg_total, dt_ug_real1, dt_vg_real1, dt_ug_real2, dt_vg_real2
-     
-     
+
+
 logical, allocatable, dimension(:,:) ::                                       &
      avail,                &   ! generate surf. flux (all true)
      land,                 &   ! land points (all false)
      coldT                     ! should precipitation be snow at this point
 
 real, allocatable, dimension(:,:) ::                                          &
-     klzbs,                &   ! stored level of zero buoyancy values         
-     cape,                 &   ! convectively available potential energy      
-     cin,                  &   ! convective inhibition (this and the above are before the adjustment)                                                    
-     invtau_q_relaxation,  &   ! temperature relaxation time scale           
-     invtau_t_relaxation,  &   ! humidity relaxation time scale               
-     rain,                 &   !                                              
+     klzbs,                &   ! stored level of zero buoyancy values
+     cape,                 &   ! convectively available potential energy
+     cin,                  &   ! convective inhibition (this and the above are before the adjustment)
+     invtau_q_relaxation,  &   ! temperature relaxation time scale
+     invtau_t_relaxation,  &   ! humidity relaxation time scale
+     rain,                 &   !
      snow
 
 real, allocatable, dimension(:,:) ::                                          &
@@ -230,7 +234,7 @@ integer ::                                                                    &
      id_conv_dt_tg,        &   ! temperature tendency from convection
      id_conv_dt_qg,        &   ! temperature tendency from convection
      id_cond_dt_tg,        &   ! temperature tendency from convection
-     id_cond_dt_qg,        &   ! temperature tendency from convection 
+     id_cond_dt_qg,        &   ! temperature tendency from convection
      id_drag_m,            &
      id_drag_q,            &
      id_drag_t,            &
@@ -238,16 +242,16 @@ integer ::                                                                    &
      id_bucket_depth_conv, &   ! bucket depth variation induced by convection, added by LJJ
      id_bucket_depth_cond, &   ! bucket depth variation induced by condensation, added by LJJ
      id_bucket_depth_lh,   &   ! bucket depth variation induced by LH, added by LJJ
-     id_bucket_diffusion,  &   ! diffused surface water depth 
-! Added by ZTAN 09/11/2012 -- Surface scales     
+     id_bucket_diffusion,  &   ! diffused surface water depth
+! Added by ZTAN 09/11/2012 -- Surface scales
      id_ustar,id_bstar,id_qstar,   &
 ! Added by ZTAN 09/11/2012 -- T and q TENDENCIES
      id_rad_dt_tg, &
-     id_dt_tg_param, id_dt_qg_param, id_dt_tg_fino,  id_dt_tg_hadv,  id_dt_tg_vadv,  id_dt_qg_hadv,  id_dt_qg_vadv,&                
-     id_dt_tg_total, id_dt_qg_total, id_dt_tg_real1, id_dt_qg_real1, id_dt_tg_real2, id_dt_qg_real2,& 
+     id_dt_tg_param, id_dt_qg_param, id_dt_tg_fino,  id_dt_tg_hadv,  id_dt_tg_vadv,  id_dt_qg_hadv,  id_dt_qg_vadv,&
+     id_dt_tg_total, id_dt_qg_total, id_dt_tg_real1, id_dt_qg_real1, id_dt_tg_real2, id_dt_qg_real2,&
 ! Added by ZTAN 09/07/2013 -- u and v TENDENCIES
      id_dt_ug_fino, id_dt_vg_fino, id_dt_ug_vadv, id_dt_vg_vadv, id_dt_ug_hadv, id_dt_vg_hadv, &
-     id_dt_ug_pres, id_dt_vg_pres, id_dt_ug_cori, id_dt_vg_cori, & 
+     id_dt_ug_pres, id_dt_vg_pres, id_dt_ug_cori, id_dt_vg_cori, &
      id_dt_ug_total, id_dt_vg_total, id_dt_ug_real1, id_dt_vg_real1, id_dt_ug_real2, id_dt_vg_real2, &
 ! Added by ZTAN 10/16/2012: ps-weighted values
      id_conv_dt_tg_ps, id_conv_dt_qg_ps, id_cond_dt_tg_ps, id_cond_dt_qg_ps, id_rad_dt_tg_ps, &
@@ -257,13 +261,13 @@ integer ::                                                                    &
      id_conv_dt_tg_sqr_ps,  id_conv_dt_qg_sqr_ps, id_cond_dt_tg_sqr_ps,  id_cond_dt_qg_sqr_ps, id_rad_dt_tg_sqr_ps, &
      id_dt_tg_fino_sqr_ps,  id_dt_tg_hadv_sqr_ps,  id_dt_tg_vadv_sqr_ps,&
      id_dt_qg_hadv_sqr_ps,  id_dt_qg_vadv_sqr_ps, id_dt_tg_vadvtot_sqr_ps
-     
-integer, allocatable, dimension(:,:) ::  & convflag                  
-! indicates which qe convection subroutines are used              
+
+integer, allocatable, dimension(:,:) ::  & convflag
+! indicates which qe convection subroutines are used
 
 logical :: used
 integer, dimension(4) :: axes
-                                                                               
+
 real, allocatable, dimension(:,:)   ::                                        &
      net_surf_sw_down,      &   ! net sw flux at surface
      surf_lw_down               ! downward lw flux at surface
@@ -278,7 +282,7 @@ type(time_type) :: Time_step
 
 integer, dimension(4) :: axis_id
 
-type(surf_diff_type) :: Tri_surf ! used by gcm_vert_diff 
+type(surf_diff_type) :: Tri_surf ! used by gcm_vert_diff
 
 !=================================================================================================================================
 contains
@@ -393,6 +397,11 @@ allocate(diff_m      (is:ie, js:je, num_levels))
 allocate(diss_heat   (is:ie, js:je, num_levels))
 allocate(flux_tr     (is:ie, js:je,             num_tracers))
 
+! Sea ice by Ian Eisenman, added by XZ 02/2018
+allocate(h_ice       (is:ie, js:je))
+allocate(a_ice       (is:ie, js:je))
+allocate(t_ml        (is:ie, js:je))
+
 allocate(non_diff_dt_ug  (is:ie, js:je, num_levels))
 allocate(non_diff_dt_vg  (is:ie, js:je, num_levels))
 allocate(non_diff_dt_tg  (is:ie, js:je, num_levels))
@@ -460,14 +469,14 @@ allocate(     q_ref  (is:ie, js:je, num_levels))
 
 
 call get_surf_geopotential(z_surf)
-z_surf = z_surf/grav 
-            
+z_surf = z_surf/grav
+
 t_ref = 0.0; q_ref = 0.0
 
 coldT = .false.
 rain = 0.0; snow = 0.0
 
-land = .false. 
+land = .false.
 avail = .true.
 rough_mom = roughness_mom
 rough_heat = roughness_heat
@@ -477,7 +486,7 @@ ustar = 0.0
 bstar = 0.0
 qstar = 0.0
 !End ZTAN addition
-gust = 1.0 
+gust = 1.0
 q_surf = 0.0
 u_surf = 0.0
 v_surf = 0.0
@@ -497,9 +506,9 @@ flux_tr = 0.0
 !     bucket_depth(:,:,1) = init_bucket_depth_land
 !     bucket_depth(:,:,2) = init_bucket_depth_land
 !  endwhere
-!else 
+!else
 !  bucket_depth = init_bucket_depth   !initializing depth of bucket
-!endif 
+!endif
 
 call get_deg_lat(deg_lat)
 call get_deg_lon(deg_lon)
@@ -521,7 +530,7 @@ if(bucket) then
    enddo
 else
    ocean_mask = 1.0
-   bucket_depth = init_bucket_depth   
+   bucket_depth = init_bucket_depth
 endif
 
 dt_bucket = 0.0
@@ -571,7 +580,7 @@ else
 endif
 
    !----------------------------------------------------------------------------------------------------------------------------
-if(dry_model) then 
+if(dry_model) then
  call compute_pressures_and_heights(tg(:,:,:,current), psg(:,:,current), z_full, z_half, p_full, p_half)
 else
   call compute_pressures_and_heights( &
@@ -586,7 +595,7 @@ call get_deg_lon(deg_lon)
 do j=js,je
   rad_lat_2d(:,j) = deg_lat(j)*pi/180.
 enddo
-do i=is,ie  
+do i=is,ie
   rad_lon_2d(i,:) = deg_lon(i)*pi/180.
 enddo
 
@@ -597,22 +606,27 @@ if(mixed_layer_bc) then
  ! choose an unstable initial condition to allow moisture
  ! to quickly enter the atmosphere avoiding problems with the convection scheme
  t_surf = tg(:,:,num_levels,current)+1.0
+ h_ice = 0 ! Added by XZ 02/2018
+ a_ice = 0 ! Added by XZ 02/2018
+ t_ml = t_surf ! Added by XZ 02/2018
  !call mixed_layer_init(is, ie, js, je, num_levels, t_surf, get_axis_id(), Time)
  !call mixed_layer_init(is, ie, js, je, num_levels, t_surf, bucket_depth, ocean_mask, get_axis_id(), Time)
- call mixed_layer_init(is, ie, js, je, num_levels, t_surf, q_surf, u_surf, v_surf, gust, & 
-										 ! q_surf, u_surf, v_surf, gust added by ZTAN 06/10/2011 
+ call mixed_layer_init(is, ie, js, je, num_levels, t_surf, q_surf, u_surf, v_surf, gust, &
+										 ! q_surf, u_surf, v_surf, gust added by ZTAN 06/10/2011
                                bucket_depth, ocean_mask, get_axis_id(), Time)
+call mixed_layer_init(is, ie, js, je, num_levels, t_surf, h_ice, a_ice, t_ml, q_surf, u_surf, v_surf, gust, &
+                      bucket_depth, ocean_mask, get_axis_id(), Time)
 endif
 
-! fridoo modification 01 feb 2012 
-if(tapio_forcing) then 
+! fridoo modification 01 feb 2012
+if(tapio_forcing) then
       call grid_phys_init(get_axis_id(), Time)
 elseif(hs) then
       call hs_forcing_init(get_axis_id(), Time)
 endif
 !end fridoo
- 
-if(turb) then 
+
+if(turb) then
 ! need to call gcm_vert_diff_init even if using gcm_vert_diff (rather than
 ! gcm_vert_diff_down) because the variable sphum is not initialized
 ! otherwise in the vert_diff module
@@ -667,8 +681,8 @@ endif
    id_qstar= register_diag_field(mod_name, 'qstar',     &
         axes(1:2), Time, 'qstar', 'kg/kg')
    ! END OF OUTPUT ADDED BY ZTAN 06/11/2012
-   
-if(lwet_convection) then  
+
+if(lwet_convection) then
    call qe_moist_convection_init()
    id_conv_dt_qg = register_diag_field(mod_name, 'dt_qg_convection',          &
         axes(1:3), Time, 'Moisture tendency from convection','kg/kg/s')
@@ -681,14 +695,14 @@ endif
 if(two_stream) then
    call radiation_init(is, ie, js, je, num_levels, get_axis_id(), Time)
    id_rad_dt_tg   = register_diag_field(mod_name, 'dt_tg_rad',        &
-        axes(1:3), Time, 'Temperature tendency from Radiation','K/s')    ! Added Ztan 02/06/2012   
+        axes(1:3), Time, 'Temperature tendency from Radiation','K/s')    ! Added Ztan 02/06/2012
 endif
 
 if(turb) then
    call vert_turb_driver_init (ie-is+1,je-js+1,num_levels,get_axis_id(),Time)
 
    axes = get_axis_id()
-   id_diff_dt_ug = register_diag_field(mod_name, 'dt_ug_diffusion',        & 
+   id_diff_dt_ug = register_diag_field(mod_name, 'dt_ug_diffusion',        &
         axes(1:3), Time, 'zonal wind tendency from diffusion','m/s^2')
    id_diff_dt_vg = register_diag_field(mod_name, 'dt_vg_diffusion',        &
         axes(1:3), Time, 'meridional wind tendency from diffusion','m/s^2')
@@ -802,10 +816,10 @@ if(lwet_convection) then
         axes(1:3), Time, 'Moisture tendency from convection multipled by ps','kg/kg/s*Pa')
    id_conv_dt_tg_ps = register_diag_field(mod_name, 'dt_tg_conv_ps',        &
         axes(1:3), Time, 'Temperature tendency from convection multipled by ps','K/s*Pa')
-endif       
+endif
 if(two_stream) then
    id_rad_dt_tg_ps   = register_diag_field(mod_name, 'dt_tg_rad_ps',        &
-        axes(1:3), Time, 'Temperature tendency from Radiation multipled by ps','K/s*Pa')    ! Added Ztan 02/06/2012  
+        axes(1:3), Time, 'Temperature tendency from Radiation multipled by ps','K/s*Pa')    ! Added Ztan 02/06/2012
 endif
 
 ! Added by ZTAN: DIAGNOSIS of variance of tendencies: 11/12/2012
@@ -816,9 +830,9 @@ endif
    id_dt_tg_vadv_sqr_ps  = register_diag_field(mod_name, 'dt_tg_vadv_sqr_ps',        &
         axes(1:3), Time, 'Squared temperature tendency: by vertical advection multipled by ps','10^(-6)K^2/s^2*Pa')
    id_dt_qg_hadv_sqr_ps  = register_diag_field(mod_name, 'dt_qg_hadv_sqr_ps',        &
-        axes(1:3), Time, 'Squared moisture tendency: by horizontal advection multipled by ps','10^(-12)/s^2*Pa')  
+        axes(1:3), Time, 'Squared moisture tendency: by horizontal advection multipled by ps','10^(-12)/s^2*Pa')
    id_dt_qg_vadv_sqr_ps  = register_diag_field(mod_name, 'dt_qg_vadv_sqr_ps',        &
-        axes(1:3), Time, 'Squared moisture tendency: by vertical advection multipled by ps','10^(-12)/s^2*Pa')  
+        axes(1:3), Time, 'Squared moisture tendency: by vertical advection multipled by ps','10^(-12)/s^2*Pa')
    id_dt_tg_vadvtot_sqr_ps  = register_diag_field(mod_name, 'dt_tg_vadvtot_sqr_ps',        &
         axes(1:3), Time, 'Squared temperature tendency: by vertical advection (total) multipled by ps','10^(-6)K^2/s^2*Pa')
 
@@ -855,9 +869,9 @@ real    :: delta_t
 type(time_type) :: Time_next
 
 real, dimension(is:ie, js:je, num_levels) :: tg_tmp, qg_tmp
-real, dimension(is:ie, js:je, num_levels) :: ps_wt_value    ! Added by ZTAN 09/11/2012 -- TENDENCIES temporary storage   
- 
-real inv_cp_air 
+real, dimension(is:ie, js:je, num_levels) :: ps_wt_value    ! Added by ZTAN 09/11/2012 -- TENDENCIES temporary storage
+
+real inv_cp_air
 
 ! added fridoo sept 2012 (tmerlis)
 real :: atmos_water_previous, atmos_water_future, evap_minus_precip, water_correction_factor
@@ -876,7 +890,7 @@ dt_psg = 0.0
 dt_bucket = 0.0                ! added by LJJ
 bucket_diffusion = 0.0         ! added by LJJ
 filt      = 0.0                ! added by LJJ
-dt_tracers = 0.0 
+dt_tracers = 0.0
 
 conv_dt_tg  = 0.0
 conv_dt_qg  = 0.0
@@ -960,19 +974,19 @@ if (lwet_convection) then
    conv_dt_qg = conv_dt_qg/delta_t
    depth_change_conv = rain/dens_h2o     ! added by LJJ
    rain       = rain/delta_t
-                       
-   if(atmos_water_correction) evap_minus_precip = evap_minus_precip - area_weighted_global_mean(rain) 
-                                                    
+
+   if(atmos_water_correction) evap_minus_precip = evap_minus_precip - area_weighted_global_mean(rain)
+
    dt_tg = dt_tg + conv_dt_tg
    dt_tracers(:,:,:,nhum) = dt_tracers(:,:,:,nhum) + conv_dt_qg
-                                                                            
+
    if(id_conv_dt_qg > 0) used = send_data(id_conv_dt_qg, conv_dt_qg, Time)
    if(id_conv_dt_tg > 0) used = send_data(id_conv_dt_tg, conv_dt_tg, Time)
    if(id_conv_rain > 0) used = send_data(id_conv_rain, rain, Time)
-                                                                             
-else 
 
-   tg_tmp = tg(:,:,:,previous) 
+else
+
+   tg_tmp = tg(:,:,:,previous)
    qg_tmp = grid_tracers(:,:,:,previous,nhum)
 
 endif
@@ -985,20 +999,20 @@ if(.not.dry_model) then      !loop added by fridoo 01 feb 2012
                                coldT,                            rain,        &
                                 snow,                      cond_dt_tg,        &
                           cond_dt_qg )
-                          
+
    tg_tmp = tg_tmp + cond_dt_tg       ! Added by ZTAN
-   qg_tmp = qg_tmp + cond_dt_qg       ! Added by ZTAN                                                                          
+   qg_tmp = qg_tmp + cond_dt_qg       ! Added by ZTAN
    cond_dt_tg = cond_dt_tg/delta_t
    cond_dt_qg = cond_dt_qg/delta_t
    depth_change_cond = rain/dens_h2o        ! added by LJJ
    rain       = rain/delta_t
-                                      
-   if(atmos_water_correction) evap_minus_precip = evap_minus_precip - area_weighted_global_mean(rain) 
-                                       
+
+   if(atmos_water_correction) evap_minus_precip = evap_minus_precip - area_weighted_global_mean(rain)
+
    dt_tg = dt_tg + cond_dt_tg
    dt_tracers(:,:,:,nhum) = dt_tracers(:,:,:,nhum) + cond_dt_qg
 
-                                                                               
+
    if(id_cond_dt_qg > 0) used = send_data(id_cond_dt_qg, cond_dt_qg, Time)
    if(id_cond_dt_tg > 0) used = send_data(id_cond_dt_tg, cond_dt_tg, Time)
    if(id_cond_rain > 0) used = send_data(id_cond_rain, rain, Time)
@@ -1018,7 +1032,7 @@ end if
 
 
 ! fridoo modification 01 feb 2012
-if(tapio_forcing) then 
+if(tapio_forcing) then
    t_surf = surface_temperature(tg(:,:,:,previous), p_full, p_half)
 endif
 ! end fridoo modification
@@ -1084,7 +1098,7 @@ if(two_stream) then
                      t_surf(:,:),                    &
                      tg(:,:,:,previous),             &
                      dt_tg(:,:,:))
-                     
+
    rad_dt_tg = dt_tg - rad_dt_tg   ! temperature tendency due to radiation, ADDED ZTAN 02/06/2012
    if(id_rad_dt_tg > 0) used = send_data(id_rad_dt_tg, rad_dt_tg, Time) ! ADDED ZTAN 02/06/2012
 end if
@@ -1119,8 +1133,8 @@ if(turb) then
 
 ! loop added by fridoo 01 feb 2012
    if(.not.mixed_layer_bc .and. .not.tapio_forcing .and. .not.hs) then
-       call error_mesg('atmosphere','no diffusion implentation for non-mixed layer b.c.',FATAL) 
-   endif 
+       call error_mesg('atmosphere','no diffusion implentation for non-mixed layer b.c.',FATAL)
+   endif
 !end addition
 
 ! We must use gcm_vert_diff_down and _up rather than gcm_vert_diff as the surface flux
@@ -1161,6 +1175,9 @@ if(turb) then
                               je,                                          &
                               Time,                                        &
                               t_surf(:,:),                                 &
+                               h_ice(:,:),                                 &
+                               a_ice(:,:),                                 &
+                                t_ml(:,:),                                 &
                               flux_t(:,:),                                 &
                               flux_q(:,:),                                 &
                               flux_r(:,:),                                 &
@@ -1176,7 +1193,7 @@ if(turb) then
                             dhdt_atm(:,:),                                 &
                             dedq_atm(:,:))
 
-   
+
    endif
 
    if(atmos_water_correction) evap_minus_precip = evap_minus_precip + area_weighted_global_mean( flux_q )
@@ -1184,14 +1201,14 @@ if(turb) then
    call gcm_vert_diff_up (1, 1, delta_t, Tri_surf,  &
                           dt_tg(:,:,:),     dt_tracers(:,:,:,nhum))
 
-   
+
 
    if(id_diff_dt_ug > 0) used = send_data(id_diff_dt_ug, dt_ug - non_diff_dt_ug, Time)
    if(id_diff_dt_vg > 0) used = send_data(id_diff_dt_vg, dt_vg - non_diff_dt_vg, Time)
    if(id_diff_dt_tg > 0) used = send_data(id_diff_dt_tg, dt_tg - non_diff_dt_tg, Time)
    if(id_diff_dt_qg > 0) used = send_data(id_diff_dt_qg, dt_tracers(:,:,:,nhum) - non_diff_dt_qg, Time)
 endif
- 
+
 
 
 Time_next = Time + Time_step
@@ -1206,7 +1223,7 @@ endif
 if(bucket) then
    ! bucket time tendency
    dt_bucket = depth_change_cond + depth_change_conv - depth_change_lh
-   !change in bucket depth in one leapfrog timestep [m]                                 
+   !change in bucket depth in one leapfrog timestep [m]
 
    !diffuse_surf_water transforms dt_bucket to spherical, diffuses water, and transforms back
    call diffuse_surf_water(dt_bucket,bucket_depth(:,:,previous),delta_t,damping_coeff_bucket,bucket_diffusion)
@@ -1221,13 +1238,13 @@ if(bucket) then
         *(bucket_depth(:,:,previous) - 2.0*bucket_depth(:,:,current) + bucket_depth(:,:,future)) * raw_bucket
    else
       bucket_depth(:,:,current) = bucket_depth(:,:,current ) + robert_bucket &
-        *(bucket_depth(:,:,previous) - 2.0*bucket_depth(:,:,current)) * raw_bucket 
+        *(bucket_depth(:,:,previous) - 2.0*bucket_depth(:,:,current)) * raw_bucket
       bucket_depth(:,:,future ) = bucket_depth(:,:,previous) + dt_bucket
       bucket_depth(:,:,current) = bucket_depth(:,:,current) + robert_bucket * bucket_depth(:,:,future) * raw_bucket
    endif
 
    bucket_depth(:,:,future) = bucket_depth(:,:,future) + robert_bucket * (filt(:,:) + bucket_depth(:,:, future)) &
-                           * (raw_bucket - 1.0)  
+                           * (raw_bucket - 1.0)
 
    where (bucket_depth <= 0.) bucket_depth = 0.
 
@@ -1251,7 +1268,7 @@ if(bucket) then
 
    if(id_bucket_diffusion > 0) used = send_data(id_bucket_diffusion, bucket_diffusion(:,:), Time)
 
-   bucket_diffusion=bucket_diffusion*delta_t !convert back to m 
+   bucket_diffusion=bucket_diffusion*delta_t !convert back to m
 
 endif
 ! end addition by LJJ
@@ -1266,7 +1283,7 @@ call spectral_dynamics_outputtend(Time, psg(:,:,future), ug(:,:,:,future), vg(:,
                        dt_ug_fino, dt_vg_fino, dt_ug_vadv, dt_vg_vadv, dt_ug_hadv, dt_vg_hadv, dt_ug_pres, dt_vg_pres, dt_ug_cori, dt_vg_cori, & ! Added by ZTAN 09/07/2013 -- TENDENCIES
                        dt_ug_total, dt_vg_total, dt_ug_real1, dt_vg_real1, dt_ug_real2, dt_vg_real2, & ! Added by ZTAN 09/07/2013 -- TENDENCIES
                        dt_tg_total, dt_qg_total, dt_tg_real1, dt_qg_real1, dt_tg_real2, dt_qg_real2 ) ! Added by ZTAN 09/11/2012 -- TENDENCIES
-                       
+
 ! call complete_robert_filter(tracer_attributes)! moved inside the spectral_dynamics: ZTAN 01/18/2012
 
 ! Added by ZTAN: DIAGNOSIS of TENDENCIES (T,q) 09/11/2012
@@ -1285,7 +1302,7 @@ call spectral_dynamics_outputtend(Time, psg(:,:,future), ug(:,:,:,future), vg(:,
    if(id_dt_qg_real2 > 0)  used = send_data(id_dt_qg_real2,  dt_qg_real2, Time)
 ! End of ZTAN Addition: DIAGNOSIS of TENDENCIES  09/11/2012
 
-! Added by ZTAN: DIAGNOSIS of TENDENCIES (u,v) 09/07/2013       
+! Added by ZTAN: DIAGNOSIS of TENDENCIES (u,v) 09/07/2013
 !   if(id_dt_ug_param > 0)  used = send_data(id_dt_ug_param,  dt_ug_param, Time)
 !   if(id_dt_vg_param > 0)  used = send_data(id_dt_vg_param,  dt_vg_param, Time)
    if(id_dt_ug_fino  > 0)  used = send_data(id_dt_ug_fino,   dt_ug_fino,  Time)
@@ -1329,7 +1346,7 @@ call spectral_dynamics_outputtend(Time, psg(:,:,future), ug(:,:,:,future), vg(:,
       call  compute_ps_wt_value (conv_dt_qg, psg(:,:,future) , ps_wt_value)
       used = send_data(id_conv_dt_qg_ps,   ps_wt_value, Time)
    end if
-   
+
    if(id_dt_tg_param_ps   > 0)   then
       call  compute_ps_wt_value (dt_tg_param, psg(:,:,future) , ps_wt_value)
       used = send_data(id_dt_tg_param_ps,   ps_wt_value, Time)
@@ -1446,7 +1463,7 @@ call spectral_dynamics_outputtend(Time, psg(:,:,future), ug(:,:,:,future), vg(:,
 if(dry_model) then
   call compute_pressures_and_heights(tg(:,:,:,future), psg(:,:,future), z_full, z_half, p_full, p_half)
 else
-  ! first do current time for p_prev vars to be used in conv/cond 
+  ! first do current time for p_prev vars to be used in conv/cond
   call compute_pressures_and_heights( tg(:,:,:,current), psg(:,:,current), &
        z_full, z_half, p_full_prev, p_half_prev, grid_tracers(:,:,:,current,nhum))
   call compute_pressures_and_heights( &
@@ -1467,10 +1484,10 @@ endif
 call spectral_diagnostics(Time_next, psg(:,:,future), ug(:,:,:,future), vg(:,:,:,future), &
                           tg(:,:,:,future), wg_full, wg, grid_tracers(:,:,:,:,:), future)
 
-previous = current 
+previous = current
 current  = future
 
-return 
+return
 end subroutine atmosphere
 
 !=================================================================================================================================
@@ -1509,7 +1526,7 @@ call set_domain(grid_domain)
 if(two_stream)      call radiation_end
 if(lwet_convection) call qe_moist_convection_end
 if(turb)            call gcm_vert_diff_end
-if(mixed_layer_bc)  call mixed_layer_end(t_surf, q_surf, u_surf, v_surf, gust, bucket_depth)
+if(mixed_layer_bc)  call mixed_layer_end(t_surf, h_ice, a_ice, t_ml, q_surf, u_surf, v_surf, gust, bucket_depth)
 
 call spectral_dynamics_end(tracer_attributes)
 deallocate(tracer_attributes)
