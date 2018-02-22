@@ -39,6 +39,11 @@
  "mixed_layer",     "flux_lhe",            "flux_lhe",           "4xday",       "all", .false.,  "none", 2,
  "mixed_layer",     "flux_oceanq",         "flux_oceanq",        "4xday",       "all", .false.,  "none", 2,
  "mixed_layer",     "t_surf",              "t_surf",             "4xday",       "all", .false.,  "none", 2,
+ "mixed_layer",     "t_ml",                "t_ml",               "4xday",       "all", .false.,  "none", 2,
+ "mixed_layer",     "h_ice",               "h_ice",              "4xday",       "all", .false.,  "none", 2,
+ "mixed_layer",     "a_ice",               "a_ice",              "4xday",       "all", .false.,  "none", 2,
+ "mixed_layer",     "flux_ice",            "flux_ice",           "4xday",       "all", .false.,  "none", 2,
+ "two_stream",      "albedo",              "albedo",             "4xday",       "all", .false.,  "none", 2,
  "dynamics",        "ps",                  "ps",                 "1x20days",    "all", .false.,  "none", 2,
 # "dynamics",        "vor",         	   "vor",                "1x20days",    "all", .false.,  "none", 2,
 # "dynamics",        "div",                "div",                "1x20days",    "all", .false.,  "none", 2,
@@ -117,10 +122,11 @@
  "vert_turb",       "z_pbl",               "z_pbl",              "1x20days",    "all", .false.,  "none", 2,
  "vert_turb",       "diff_m",              "diff_m",             "1x20days",    "all", .false.,  "none", 2,
  "vert_turb",       "diff_t",              "diff_t",             "1x20days",    "all", .false.,  "none", 2,
- "mixed_layer",     "t_ml",                "t_ml",               "1x20days",     "all", .false.,  "none", 2,
- "mixed_layer",     "h_ice",               "h_ice",              "1x20days",     "all", .false.,  "none", 2,
- "mixed_layer",     "a_ice",               "a_ice",              "1x20days",     "all", .false.,  "none", 2,
- "two_stream",      "albedo",              "albedo",             "1x20days",     "all", .false.,  "none", 2,
+ "mixed_layer",     "t_ml",                "t_ml",               "1x20days",    "all", .false.,  "none", 2,
+ "mixed_layer",     "h_ice",               "h_ice",              "1x20days",    "all", .false.,  "none", 2,
+ "mixed_layer",     "a_ice",               "a_ice",              "1x20days",    "all", .false.,  "none", 2,
+ "mixed_layer",     "flux_ice",            "flux_ice",           "1x20days",    "all", .false.,  "none", 2,
+ "two_stream",      "albedo",              "albedo",             "1x20days",    "all", .false.,  "none", 2,
 #=============================================================================================
 #
 #  FORMATS FOR FILE ENTRIES (not all input values are used)

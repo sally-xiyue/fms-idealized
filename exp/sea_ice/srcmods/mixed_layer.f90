@@ -99,7 +99,8 @@ integer ::                                                                    &
      ! Sea ice by Ian Eisenman, XZ 02/2018
      id_h_ice,             &   ! sea ice thickness
      id_a_ice,             &   ! sea ice fractional area
-     id_t_ml                   ! mixed layer temperature
+     id_t_ml,              &   ! mixed layer temperature
+     id_flux_ice               ! conductive heat flux through ice
 
 real, allocatable, dimension(:,:)   ::                                        &
      ocean_qflux,           &   ! Q-flux
@@ -136,7 +137,8 @@ real, allocatable, dimension(:,:)   ::                                        &
      dFdt_surf,             &   ! d(corrected_flux)/d(t_surf), for calculation of ice sfc temperature
      delta_t_ml,            &   ! Increment in mixed layer temperature
      delta_h_ice,           &   ! Increment in sea ice thickness
-     delta_t_ice                ! Increment in ice (steady-state) surface temperature
+     delta_t_ice,           &   ! Increment in ice (steady-state) surface temperature
+     flux_ice                   ! Conductive heat flux through ice
 
 real, allocatable, dimension(:,:)   ::                                        &
      rad_lat_replicate,         &
@@ -245,6 +247,7 @@ allocate(dFdt_surf               (is:ie, js:je))
 allocate(delta_t_ml              (is:ie, js:je))
 allocate(delta_h_ice             (is:ie, js:je))
 allocate(delta_t_ice             (is:ie, js:je))
+allocate(flux_ice                (is:ie, js:je))
 allocate(input_t_sfc             (ie-is+1, je-js+1, num_input_times+2))
 
 if (ekman_layer) then
@@ -335,6 +338,8 @@ id_a_ice = register_diag_field(mod_name, 'a_ice',        &
                                 axes(1:2), Time, 'sea ice area','fraction of grid box')
 id_t_ml = register_diag_field(mod_name, 't_ml',        &
                                 axes(1:2), Time, 'mixed layer tempeature','K')
+id_flux_ice = register_diag_field(mod_name, 'flux_ice',        &
+                                axes(1:2), Time, 'conductive heat flux through sea ice','watts/m2')
 
 ! set up depth_map for spatially varying heat capacity  ! Added by LJJ
 where (ocean_mask > 0.0)
@@ -687,7 +692,7 @@ endif
 !
 corrected_flux = - net_surf_sw_down - surf_lw_down + alpha_t * CP_AIR + alpha_lw ! + ocean_qflux, XZ 02/2018
 t_surf_dependence = beta_t * CP_AIR + beta_lw
-
+flux_ice = 0 ! Initialize conductive heat flux through sea ice
 
 if (evaporation) then
   corrected_flux = corrected_flux + alpha_q * HLV
@@ -767,7 +772,8 @@ if ( sea_ice_in_mixed_layer .and. .not. ice_as_albedo_only ) then ! === use sea 
     ! compute surface melt
     where ( h_ice + delta_h_ice .gt. 0 ) ! surface is ice-covered
       ! calculate increment in steady-state ice surface temperature
-      delta_t_ice = ( - corrected_flux + k_ice / (h_ice + delta_h_ice) * ( t_ice_base - t_surf ) ) &
+      flux_ice = k_ice / (h_ice + delta_h_ice) * ( t_ice_base - t_surf )
+      delta_t_ice = ( - corrected_flux + flux_ice ) &
                     / ( k_ice / (h_ice + delta_h_ice) + dFdt_surf )
       ! in grid boxes with ice, wherever input t_surf=t_fr, make t_surf=t_fr;
       ! otherwise, let t_surf be whatever it wants (even t_surf>t_fr)
@@ -784,7 +790,8 @@ if ( sea_ice_in_mixed_layer .and. .not. ice_as_albedo_only ) then ! === use sea 
     ! compute surface melt
     where ( h_ice + delta_h_ice .gt. 0 ) ! surface is ice-covered
       ! calculate increment in steady-state ice surface temperature
-      delta_t_ice = ( - corrected_flux + k_ice / (h_ice + delta_h_ice) * ( t_ice_base - t_surf ) ) &
+      flux_ice = k_ice / (h_ice + delta_h_ice) * ( t_ice_base - t_surf )
+      delta_t_ice = ( - corrected_flux + flux_ice ) &
                     / ( k_ice / (h_ice + delta_h_ice) + dFdt_surf )
       where ( t_surf + delta_t_ice .gt. TFREEZE ) ! surface ablation
         delta_t_ice = TFREEZE - t_surf
@@ -872,6 +879,7 @@ if(id_flux_walker > 0)    used = send_data(id_flux_walker,  walker_flux, Time)
 if(id_h_ice > 0) used = send_data(id_h_ice, h_ice, Time)
 if(id_a_ice > 0) used = send_data(id_a_ice, a_ice, Time)
 if(id_t_ml > 0) used = send_data(id_t_ml, t_ml, Time)
+if(id_flux_ice > 0) used = send_data(id_flux_ice, flux_ice, Time)
 
 end subroutine mixed_layer
 

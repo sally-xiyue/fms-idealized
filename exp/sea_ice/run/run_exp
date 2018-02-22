@@ -367,7 +367,7 @@ EOF
       &radiation_nml
         albedo_value                 = 0.38,
         albedo_ocn                   = 0.1,
-        albedo_ice                   = 0.7, 
+        albedo_ice                   = 0.7,
         lw_linear_frac               = 0.2,
         perpetual_equinox            =.false.,
         annual_mean                  =.false.,
@@ -397,7 +397,7 @@ EOF
         walker_w_lon       = 180.0,
         walker_n_lat       = 15.0,
         walker_s_lat       = 0.0,
-        walker_n_amp       = 150.0,
+        walker_n_amp       = 0.0,
         walker_s_amp       = 0.0,
         walker_width_ew    = 30.0,
         walker_width_ns    = 6.0,
@@ -413,7 +413,7 @@ EOF
         tau_bm               = 7200.0,
         rhbm                 = 0.7,
         val_inc              = 0.01,
-        Tmin                 = 170.,
+        Tmin                 = 110.,
         Tmax                 = 380. /
 
       &lscale_cond_nml
