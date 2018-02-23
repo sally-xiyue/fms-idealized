@@ -306,6 +306,10 @@ if (file_exist('INPUT/mixed_layer.res.nc')) then
    call read_data(trim('INPUT/mixed_layer.res'), 'gust',     gust,   grid_domain)
 ! end of addition
    call read_data(trim('INPUT/mixed_layer.res'), 'bucket_depth', bucket_depth, grid_domain)
+! Sea ice by Ian Eisenman, added by XZ 02/2018
+   call read_data(trim('INPUT/mixed_layer.res'), 'h_ice',     h_ice,   grid_domain)
+   call read_data(trim('INPUT/mixed_layer.res'), 'a_ice',     a_ice,   grid_domain)
+   call read_data(trim('INPUT/mixed_layer.res'), 't_ml',     t_ml,   grid_domain)
 
 else if (file_exist('INPUT/swamp.res')) then
          unit = open_file (file='INPUT/swamp.res', &
